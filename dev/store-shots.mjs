@@ -7,7 +7,7 @@ const PAGES = {
   controls: 'https://developer.mozilla.org/en-US/docs/Web/API/Picture-in-Picture_API',
   stash: 'https://en.wikipedia.org/wiki/Big_Buck_Bunny',
   edge: 'https://en.wikipedia.org/wiki/Blender_Foundation',
-  large: 'https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement',
+  small: 'https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement',
 };
 const browser = await launch({ exe: '/usr/bin/brave', width: 1280, height: 800, dpr: 2 });
 try {
@@ -34,7 +34,7 @@ try {
   if (scene === 'controls') { await page.mouse.click(b.x + b.w / 2, b.y + b.h * 0.3); await sleep(700); }
   if (scene === 'stash') { await drag(0, -260); await drag(b.w * 0.75, 0, 8); }
   if (scene === 'edge') { await drag(-900, -300); }
-  if (scene === 'large') { await page.mouse.click(b.x + b.w / 2, b.y + b.h / 2); await sleep(70); await page.mouse.click(b.x + b.w / 2, b.y + b.h / 2); await sleep(1200); }
+  if (scene === 'small') { for (let i = 0; i < 3 && b.w > 200; i++) { await page.mouse.click(b.x + b.w / 2, b.y + b.h / 2); await sleep(70); await page.mouse.click(b.x + b.w / 2, b.y + b.h / 2); await sleep(1200); b = await pipBox(page); } }
   await page.screenshot({ path: `${out}/${scene}.png` });
 } finally {
   await browser.close();
