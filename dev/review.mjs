@@ -12,7 +12,7 @@ async function inside(page, fn) {
   try {
     const { root } = await cdp.send('DOM.getDocument', { depth: -1, pierce: true });
     function walk(n) {
-      if (n.attributes?.includes('pip')) return n;
+      if (n.attributes?.some((a, i) => i % 2 && n.attributes[i - 1] === 'class' && /(^|\s)pip(\s|$)/.test(a))) return n;
       for (const c of [...(n.children || []), ...(n.shadowRoots || [])]) { const r = walk(c); if (r) return r; }
     }
     const n = walk(root); if (!n) return null;

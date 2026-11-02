@@ -7,6 +7,7 @@
 // RTCPeerConnection, so nothing is reloaded or re-buffered.
 
 const KEY = 'pipState';
+const isYouTube = (url) => /^https?:\/\/([^/]+\.)?youtube\.com\//.test(url || '');
 let mem = null;
 let chain = Promise.resolve();
 
@@ -88,6 +89,15 @@ async function evaluate(reason) {
     return save();
   }
 
+  if (tab.id === st.source.tabId && !isYouTube(tab.url)) {
+    // The source tab itself has left YouTube: nothing to float any more.
+    st.source = null;
+    st.sourcePlaying = false;
+    st.active = false;
+    await hideOverlay(st);
+    return save();
+  }
+
   if (tab.id === st.source.tabId) {
     // Back on the YouTube tab: it plays there "as normal".
     st.active = false;
@@ -155,7 +165,7 @@ chrome.tabs.onRemoved.addListener((tabId) =>
 // The source tab left YouTube: its player is gone, so release ownership.
 // (The URL is visible here through the host permission; no "tabs" needed.)
 chrome.tabs.onUpdated.addListener((tabId, info) => {
-  if (!info.url || /^https?:\/\/([^/]+\.)?youtube\.com\//.test(info.url)) return;
+  if (!info.url || isYouTube(info.url)) return;
   serial(async () => {
     const st = await state();
     if (st.source?.tabId !== tabId) return;
@@ -173,6 +183,10 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 
   switch (msg.type) {
     case 'src:state':
+      // A late report from a document that is navigating away (the tab has
+      // already moved on, or the document is in bfcache / being torn down)
+      // must not claim ownership.
+      if (!isYouTube(sender.tab.url) || (sender.documentLifecycle && sender.documentLifecycle !== 'active')) break;
       serial(async () => {
         const st = await state();
         const s = msg.state;
@@ -260,7 +274,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   const tabs = await chrome.tabs.query({});
   for (const tab of tabs) {
     if (!tab.url || !/^https?:/.test(tab.url)) continue;
-    const files = /^https?:\/\/([^/]+\.)?youtube\.com\//.test(tab.url) ? ['source.js', 'pip.js'] : ['pip.js'];
+    const files = isYouTube(tab.url) ? ['source.js', 'pip.js'] : ['pip.js'];
     chrome.scripting.executeScript({ target: { tabId: tab.id }, files }).catch(() => {});
   }
 });

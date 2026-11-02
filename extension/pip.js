@@ -242,7 +242,7 @@
       const root = host.attachShadow({ mode: 'closed' });
       root.innerHTML = `
         <style>${CSS}</style>
-        <div class="pip hidden" part="pip">
+        <div class="pip hidden">
           <div class="body">
             <div class="clip">
               <img class="poster" alt="">
@@ -303,8 +303,28 @@
       this.mount();
     }
 
+    // While a page element is fullscreen, everything outside it is inert, so
+    // the window has to live inside that element to stay clickable. Media and
+    // other replaced elements can't hold children; there it can only paint on top.
+    mountParent() {
+      const fs = document.fullscreenElement;
+      const replaced = fs instanceof HTMLMediaElement || fs instanceof HTMLIFrameElement || fs instanceof HTMLImageElement || fs instanceof HTMLCanvasElement;
+      return (fs && !replaced && fs) || document.documentElement || document.body;
+    }
+
     mount() {
-      (document.documentElement || document.body).appendChild(this.host);
+      const parent = this.mountParent();
+      if (this.host.parentNode !== parent) {
+        try {
+          this.host.hidePopover();
+        } catch {}
+        parent.appendChild(this.host);
+      }
+      // (Re-)entering the top layer also puts the window above a fullscreen
+      // element, since later top-layer entries paint on top.
+      try {
+        this.host.hidePopover();
+      } catch {}
       try {
         this.host.showPopover();
       } catch {}
@@ -312,17 +332,11 @@
 
     ensureMounted() {
       if (!alive()) return;
-      if (!this.host.isConnected) this.mount();
+      if (!this.host.isConnected || this.host.parentNode !== this.mountParent()) this.mount();
     }
 
-    // Re-enter the top layer so the window stays above an element the page
-    // just made fullscreen (later top-layer entries paint on top).
     raise() {
-      if (!this.host.isConnected) return;
-      try {
-        this.host.hidePopover();
-        this.host.showPopover();
-      } catch {}
+      this.mount();
     }
 
     // lifecycle --------------------------------------------------------------
