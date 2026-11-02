@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "PiP Anywhere – Floating Player for YouTube",
+  "short_name": "PiP Anywhere",
+  "version": "1.0.0",
+  "description": "Keeps your YouTube video playing in a floating picture-in-picture window on every tab. Drag it, snap it to an edge or tuck it away.",
+  "homepage_url": "https://github.com/Ryxwaer/youtube-popup-extension",
+  "minimum_chrome_version": "120",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "tabs",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "source.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "pip.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

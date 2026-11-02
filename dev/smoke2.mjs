@@ -1,0 +1,22 @@
+import { launch, openYouTube, pipBox, sleep } from './harness.mjs';
+import fs from 'node:fs';
+const out = process.argv[2] || 'shots2';
+const exe = process.argv[3] || '/usr/bin/chromium';
+fs.mkdirSync(out, { recursive: true });
+const browser = await launch({ exe });
+const b = await browser.newPage();
+await b.goto('https://en.wikipedia.org/wiki/Picture-in-picture', { waitUntil: 'domcontentloaded' });
+const yt = await openYouTube(browser);
+await yt.bringToFront();
+await sleep(3000);
+await yt.screenshot({ path: `${out}/00-yt.png` });
+await b.bringToFront();
+for (const t of [60, 200, 400]) { await sleep(t === 60 ? 60 : t - (t === 200 ? 60 : 200)); await b.screenshot({ path: `${out}/01-fly-${t}.png` }); }
+await sleep(2500);
+console.log('box', await pipBox(b));
+await b.screenshot({ path: `${out}/02-corner.png` });
+const st = await yt.evaluate(() => ({ t: document.querySelector('#movie_player video').currentTime, vis: document.visibilityState, w: document.querySelector('#movie_player video').videoWidth }));
+console.log('yt', st);
+await yt.bringToFront(); await sleep(500);
+console.log('after return box', await pipBox(b));
+await browser.close();

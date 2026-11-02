@@ -1,0 +1,11 @@
+# Only source, tests and docs are tracked. Test output, downloaded reference
+# material (third-party images) and local tooling stay out of the repo.
+node_modules/
+dist/
+*.png
+!extension/icons/*.png
+!store/*.png
+dev/*/
+dev/feas*.mjs
+dev/cws*.mjs
+dev/round2-validation.json
