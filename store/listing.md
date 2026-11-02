@@ -55,9 +55,6 @@ picture-in-picture window on your other tabs.
 
 **Permission justifications:**
 
-- `tabs`: Detects when you switch away from the YouTube tab and back, so the floating
-  window can be shown on the newly active tab and hidden when you return. Also used by
-  the window's "back to video" button to switch to the YouTube tab.
 - `scripting`: Adds the floating-window script to tabs that were already open before
   the extension was installed, so the window can appear there without reloading the
   page.

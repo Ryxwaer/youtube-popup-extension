@@ -8,8 +8,19 @@
 // behind a blurred tab, pinch / double-tap resize, tap for controls.
 
 (() => {
-  if (window.__pipOverlayLoaded || window.top !== window) return;
-  window.__pipOverlayLoaded = true;
+  if (window.top !== window) return;
+  // A previous copy (e.g. one orphaned by an extension reload, which shares
+  // this isolated world) gives way to this one.
+  try {
+    window.__pipOverlay?.dispose();
+  } catch {}
+  const life = new AbortController();
+  window.__pipOverlay = { dispose: () => life.abort() };
+  const alive = () => {
+    if (chrome.runtime?.id) return true;
+    life.abort();
+    return false;
+  };
 
   // ---- tuning -------------------------------------------------------------
 
@@ -204,7 +215,9 @@
     // DOM -----------------------------------------------------------------------
 
     build(snapshot) {
-      const host = (this.host = document.createElement('pip-anywhere-root'));
+      // A built-in element: a custom tag could be pre-registered by the page,
+      // which would then reach this closed shadow root via ElementInternals.
+      const host = (this.host = document.createElement('div'));
       host.setAttribute('popover', 'manual');
       host.style.cssText = [
         'all:initial',
@@ -273,11 +286,12 @@
       this.el.addEventListener('pointercancel', (e) => this.onUp(e, true));
       this.el.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
       this.el.addEventListener('click', (e) => {
-        if (e.detail !== 0) return;
+        if (!e.isTrusted || e.detail !== 0) return;
         const btn = e.target.closest('.btn');
         if (btn) this.action(btn.dataset.act);
       });
       this.stash.addEventListener('keydown', (e) => {
+        if (!e.isTrusted) return;
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.onTap(); }
       });
       this.el.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -297,7 +311,18 @@
     }
 
     ensureMounted() {
+      if (!alive()) return;
       if (!this.host.isConnected) this.mount();
+    }
+
+    // Re-enter the top layer so the window stays above an element the page
+    // just made fullscreen (later top-layer entries paint on top).
+    raise() {
+      if (!this.host.isConnected) return;
+      try {
+        this.host.hidePopover();
+        this.host.showPopover();
+      } catch {}
     }
 
     // lifecycle --------------------------------------------------------------
@@ -595,7 +620,7 @@
     // gestures ---------------------------------------------------------------------
 
     onDown(e) {
-      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      if (!e.isTrusted || (e.button !== 0 && e.pointerType === 'mouse')) return;
       e.preventDefault();
       this.el.setPointerCapture(e.pointerId);
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -793,7 +818,7 @@
 
     onWheel(e) {
       // Trackpad pinch arrives as ctrl+wheel in Chromium.
-      if (!e.ctrlKey) return;
+      if (!e.isTrusted || !e.ctrlKey) return;
       e.preventDefault();
       if (this.pos.stashed) return;
       const area = this.currentArea() * Math.exp(-e.deltaY * 0.02);
@@ -925,7 +950,8 @@
 
   let ui = null;
 
-  chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  const onMessage = (msg, _sender, reply) => {
+    if (!alive()) return;
     switch (msg.type) {
       case 'pip:show':
         ui?.destroy(false);
@@ -946,9 +972,35 @@
       case 'pip:rtc':
         if (ui && ui.sid === msg.sid) ui.onRtc(msg.data).catch(() => {});
         break;
+      default:
+        // Not ours (e.g. a source query reaching a tab that left YouTube):
+        // stay silent so the sender sees no receiver.
+        return;
     }
     reply({ ok: true });
+  };
+  chrome.runtime.onMessage.addListener(onMessage);
+
+  life.signal.addEventListener('abort', () => {
+    ui?.destroy(false);
+    ui = null;
+    try {
+      chrome.runtime.onMessage.removeListener(onMessage);
+    } catch {}
   });
+
+  // Back/forward cache: drop the stale window on the way out and ask the
+  // router to reconcile when the page comes back.
+  const opts = { signal: life.signal };
+  addEventListener('pagehide', (e) => {
+    if (!e.persisted) return;
+    ui?.destroy(false);
+    ui = null;
+  }, opts);
+  addEventListener('pageshow', (e) => {
+    if (e.persisted && alive()) send({ type: 'pip:hello' });
+  }, opts);
+  document.addEventListener('fullscreenchange', () => ui?.raise(), opts);
 
   send({ type: 'pip:hello' });
 })();

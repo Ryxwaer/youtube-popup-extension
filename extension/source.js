@@ -5,8 +5,14 @@
 // captureStream() + a local RTCPeerConnection. Audio keeps playing here.
 
 (() => {
-  if (window.__pipSourceLoaded) return;
-  window.__pipSourceLoaded = true;
+  // A previous copy (e.g. one orphaned by an extension reload, which shares
+  // this isolated world) gives way to this one.
+  try {
+    window.__pipSource?.dispose();
+  } catch {}
+  const life = new AbortController();
+  window.__pipSource = { dispose: () => life.abort() };
+  const opts = { capture: true, signal: life.signal };
 
   const MAX_SEND_HEIGHT = 720;
   const MAX_SEND_FPS = 30;
@@ -23,11 +29,14 @@
   let lastTick = 0;
 
   const send = (msg) => {
+    if (!chrome.runtime?.id) {
+      // Extension was reloaded: this orphaned copy shuts itself down.
+      life.abort();
+      return;
+    }
     try {
       chrome.runtime.sendMessage(msg).catch(() => {});
-    } catch {
-      // Extension was reloaded; this orphaned script can no longer talk.
-    }
+    } catch {}
   };
 
   function findVideo() {
@@ -116,7 +125,7 @@
         if (sender && (ev === 'loadedmetadata' || ev === 'playing' || ev === 'resize' || ev === 'emptied')) attachTrack();
         report(ev !== 'resize', ev === 'play');
       },
-      true,
+      opts,
     );
   }
   document.addEventListener(
@@ -131,9 +140,12 @@
       lastTick = now;
       report(false);
     },
-    true,
+    opts,
   );
-  document.addEventListener('visibilitychange', () => report(true));
+  document.addEventListener('visibilitychange', () => report(true), opts);
+  // Back/forward cache: the peer connection belongs to the old visit.
+  addEventListener('pagehide', (e) => e.persisted && closePc(), opts);
+  addEventListener('pageshow', (e) => e.persisted && report(true), opts);
 
   // ---- WebRTC sender ------------------------------------------------------
 
@@ -257,7 +269,7 @@
     }
   }
 
-  chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  const onMessage = (msg, _sender, reply) => {
     switch (msg.type) {
       case 'src:query': {
         video = findVideo();
@@ -277,7 +289,18 @@
       case 'src:cmd':
         command(msg.cmd, msg.value);
         break;
+      default:
+        // pip.js in this same tab answers its own messages.
+        return;
     }
     reply({ ok: true });
+  };
+  chrome.runtime.onMessage.addListener(onMessage);
+
+  life.signal.addEventListener('abort', () => {
+    closePc();
+    try {
+      chrome.runtime.onMessage.removeListener(onMessage);
+    } catch {}
   });
 })();

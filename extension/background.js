@@ -97,20 +97,14 @@ async function evaluate(reason) {
 
   const wantSnapshot = st.overlayTab !== tab.id;
   const src = await sendTab(st.source.tabId, { type: 'src:query', snapshot: wantSnapshot });
-  if (!src || !src.state?.hasVideo) {
+  if (!src?.state?.hasVideo) {
     st.active = false;
-    if (!src) st.source = null;
-    await hideOverlay(st);
-    return save();
-  }
-
-  // The source is still on screen in another window: no need to float it.
-  let srcTab = null;
-  try {
-    srcTab = await chrome.tabs.get(st.source.tabId);
-  } catch {}
-  if (srcTab?.active && src.state.visible) {
-    st.active = false;
+    if (!src?.state) {
+      // No YouTube player answered (the tab navigated away): drop ownership
+      // so another playing tab can take over.
+      st.source = null;
+      st.sourcePlaying = false;
+    }
     await hideOverlay(st);
     return save();
   }
@@ -149,6 +143,7 @@ chrome.tabs.onRemoved.addListener((tabId) =>
     const st = await state();
     if (st.source?.tabId === tabId) {
       st.source = null;
+      st.sourcePlaying = false;
       st.active = false;
       await hideOverlay(st, true);
     }
@@ -156,6 +151,21 @@ chrome.tabs.onRemoved.addListener((tabId) =>
     return save();
   }),
 );
+
+// The source tab left YouTube: its player is gone, so release ownership.
+// (The URL is visible here through the host permission; no "tabs" needed.)
+chrome.tabs.onUpdated.addListener((tabId, info) => {
+  if (!info.url || /^https?:\/\/([^/]+\.)?youtube\.com\//.test(info.url)) return;
+  serial(async () => {
+    const st = await state();
+    if (st.source?.tabId !== tabId) return;
+    await hideOverlay(st);
+    st.source = null;
+    st.sourcePlaying = false;
+    st.active = false;
+    return save();
+  });
+});
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   const tabId = sender.tab?.id;
