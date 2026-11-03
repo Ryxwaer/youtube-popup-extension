@@ -93,6 +93,7 @@ async function evaluate(reason) {
     // The source tab itself has left YouTube: nothing to float any more.
     st.source = null;
     st.sourcePlaying = false;
+    st.watched = false;
     st.active = false;
     await hideOverlay(st);
     return save();
@@ -114,12 +115,18 @@ async function evaluate(reason) {
       // so another playing tab can take over.
       st.source = null;
       st.sourcePlaying = false;
+      st.watched = false;
     }
     await hideOverlay(st);
     return save();
   }
 
-  if (!src.state.playing && !st.active) {
+  // Like iOS, the window only takes over a video you were actually watching:
+  // one that played on screen in its tab. A video that started by itself in a
+  // background tab (e.g. YouTube autoplaying a tab restored after a browser
+  // restart, which Brave then blocks) never pops up as an empty black window;
+  // open the YouTube tab and play it there first.
+  if (!st.watched || (!src.state.playing && !st.active)) {
     await hideOverlay(st);
     return save();
   }
@@ -154,6 +161,7 @@ chrome.tabs.onRemoved.addListener((tabId) =>
     if (st.source?.tabId === tabId) {
       st.source = null;
       st.sourcePlaying = false;
+      st.watched = false;
       st.active = false;
       await hideOverlay(st, true);
     }
@@ -172,6 +180,7 @@ chrome.tabs.onUpdated.addListener((tabId, info) => {
     await hideOverlay(st);
     st.source = null;
     st.sourcePlaying = false;
+    st.watched = false;
     st.active = false;
     return save();
   });
@@ -191,16 +200,25 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         const st = await state();
         const s = msg.state;
         let changed = false;
-        if (st.source?.tabId === tabId) st.sourcePlaying = s.playing;
-        // Ownership only moves when another tab actually starts playing (or the
-        // current source is idle); periodic reports from a second playing tab
-        // must not steal it back and forth.
-        const takeOver = !st.source || msg.started || !st.sourcePlaying;
+        const watching = s.playing && s.visible && s.ready;
+        if (st.source?.tabId === tabId) {
+          st.sourcePlaying = s.playing;
+          if (watching && !st.watched) {
+            st.watched = true;
+            await save();
+          }
+        }
+        // Ownership only moves to a tab you are watching, and only when it
+        // actually starts playing (or the current source is idle); periodic
+        // reports from a second playing tab, or a tab autoplaying in the
+        // background, must not steal it.
+        const takeOver = s.visible && (!st.source || msg.started || !st.sourcePlaying);
         if (s.playing && st.source?.tabId !== tabId && takeOver) {
           // A different YouTube tab started playing: it becomes the source.
           if (st.source) await hideOverlay(st);
           st.source = { tabId, windowId: sender.tab.windowId };
           st.sourcePlaying = true;
+          st.watched = !!s.ready;
           st.active = false;
           changed = true;
           await save();
@@ -267,6 +285,13 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       break;
   }
   reply?.({ ok: true });
+});
+
+// Nothing carries over a browser restart: restored tabs start without a
+// floating window until you play a video on its YouTube tab again.
+chrome.runtime.onStartup.addListener(() => {
+  mem = null;
+  chrome.storage.session.clear().catch(() => {});
 });
 
 // Make the extension work in tabs that were already open when it was installed.

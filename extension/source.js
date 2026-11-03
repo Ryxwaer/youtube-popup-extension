@@ -67,6 +67,9 @@
     return {
       hasVideo: true,
       playing: !v.paused && !v.ended,
+      // Actually showing frames (not stuck before the first one, e.g. when
+      // autoplay in a background tab is blocked).
+      ready: v.readyState >= 3 && v.videoWidth > 0,
       t: v.currentTime,
       d: Number.isFinite(d) ? d : 0,
       rate: v.playbackRate || 1,

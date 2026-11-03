@@ -1,5 +1,6 @@
 // The source tab navigates away while a second YouTube tab keeps playing:
-// ownership must move to the second tab, never stick to the departed one.
+// ownership must not stick to the departed one, and moves to the second tab
+// once that one is watched.
 import { launch, openYouTube, pipBox, sleep } from './harness.mjs';
 const browser = await launch({ exe: process.argv[2] || '/usr/bin/brave' });
 const out = [];
@@ -29,8 +30,13 @@ try {
   const c = await browser.newPage();
   await c.goto('https://en.wikipedia.org/wiki/Picture-in-picture', { waitUntil: 'domcontentloaded' });
   await c.bringToFront(); await sleep(3500);
+  // B only played in the background since A took over, so it doesn't float
+  // until it's watched on its own tab again.
+  out.push(['no window for a video only playing in the background', !(await pipBox(c))]);
+  await ytB.bringToFront(); await sleep(2500);
+  await c.bringToFront(); await sleep(3000);
   const s2 = await st();
-  out.push(['B owns once its reports arrive', s2.source?.tabId === idB, { src: s2.source?.tabId }]);
+  out.push(['B owns once watched', s2.source?.tabId === idB, { src: s2.source?.tabId }]);
   out.push(['overlay shows on tab C', !!(await pipBox(c))]);
 } finally {
   await browser.close();
