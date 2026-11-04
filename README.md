@@ -57,4 +57,18 @@ node perf.mjs 1                             # CPU / memory with the extension
 YouTube stops playback after about 30 seconds in headless automation (with or
 without the extension), so the tests keep each session short.
 
+### Diagnostics
+
+Off by default. To turn them on, open `chrome://extensions`, click **service worker**
+under PiP Anywhere, and run in its console:
+
+```js
+chrome.storage.local.set({ pipDebug: true })   // false to turn off again
+```
+
+While on, both content scripts log connection, capture and freeze events to the page's
+console (`console.debug`, prefixed `[PiP]`) and keep the last 400 lines in `__pipLog`
+in the extension's content-script context. A freeze also snapshots both ends of the
+video link.
+
 Not affiliated with YouTube, Google or Apple.

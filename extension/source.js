@@ -14,13 +14,19 @@
   window.__pipSource = { dispose: () => life.abort() };
   const opts = { capture: true, signal: life.signal };
 
-  // Diagnostics: a small in-memory ring buffer (readable from DevTools as
-  // __pipLog in this content script's context) mirrored to console.debug.
-  const LOG = (window.__pipLog = window.__pipLog || []);
+  // Diagnostics, off unless enabled with chrome.storage.local.set({ pipDebug: true })
+  // (e.g. from the service worker's DevTools console). When on: a small ring
+  // buffer (__pipLog in this content script's context) mirrored to console.debug.
+  let debug = false;
+  chrome.storage.local.get('pipDebug').then((r) => (debug = !!r.pipDebug), () => {});
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && 'pipDebug' in changes) debug = !!changes.pipDebug.newValue;
+  });
   const log = (...parts) => {
-    const line = [new Date().toISOString().slice(11, 23), ...parts.map((x) => (typeof x === 'string' ? x : JSON.stringify(x)))].join(' ');
-    LOG.push(line);
-    if (LOG.length > 400) LOG.shift();
+    if (!debug) return;
+    const buf = (window.__pipLog ||= []);
+    buf.push([new Date().toISOString().slice(11, 23), ...parts.map((x) => (typeof x === 'string' ? x : JSON.stringify(x)))].join(' '));
+    if (buf.length > 400) buf.shift();
     console.debug('[PiP]', ...parts);
   };
 
@@ -308,7 +314,7 @@
   // ---- commands -------------------------------------------------------------
 
   function command(cmd, value) {
-    if (cmd === 'diag') return diagnose(value);
+    if (cmd === 'diag') return debug && diagnose(value);
     const v = findVideo();
     if (!v) return;
     switch (cmd) {

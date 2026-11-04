@@ -17,13 +17,19 @@
   const life = new AbortController();
   window.__pipOverlay = { dispose: () => life.abort() };
 
-  // Diagnostics: a small in-memory ring buffer (readable from DevTools as
-  // __pipLog in this content script's context) mirrored to console.debug.
-  const LOG = (window.__pipLog = window.__pipLog || []);
+  // Diagnostics, off unless enabled with chrome.storage.local.set({ pipDebug: true })
+  // (e.g. from the service worker's DevTools console). When on: a small ring
+  // buffer (__pipLog in this content script's context) mirrored to console.debug.
+  let debug = false;
+  chrome.storage.local.get('pipDebug').then((r) => (debug = !!r.pipDebug), () => {});
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && 'pipDebug' in changes) debug = !!changes.pipDebug.newValue;
+  });
   const log = (...parts) => {
-    const line = [new Date().toISOString().slice(11, 23), ...parts.map((x) => (typeof x === 'string' ? x : JSON.stringify(x)))].join(' ');
-    LOG.push(line);
-    if (LOG.length > 400) LOG.shift();
+    if (!debug) return;
+    const buf = (window.__pipLog ||= []);
+    buf.push([new Date().toISOString().slice(11, 23), ...parts.map((x) => (typeof x === 'string' ? x : JSON.stringify(x)))].join(' '));
+    if (buf.length > 400) buf.shift();
     console.debug('[PiP]', ...parts);
   };
   const alive = () => {
@@ -431,6 +437,8 @@
       }
       this.frozenFor = (this.frozenFor || 0) + 1;
       if (this.frozenFor !== 4) return;
+      this.reconnect('frozen');
+      if (!debug) return;
       const pc = this.pc;
       pc.getStats().then((stats) => {
         const out = { frames, conn: pc.connectionState, ice: pc.iceConnectionState, video: [this.video.videoWidth, this.video.videoHeight], paused: this.video.paused };
@@ -440,7 +448,6 @@
         log('frozen', out);
       }).catch(() => {});
       send({ type: 'pip:cmd', cmd: 'diag', value: 'overlay frozen' });
-      this.reconnect('frozen');
     }
 
     // Build a fresh connection to the YouTube tab, e.g. after a network change
