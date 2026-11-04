@@ -16,6 +16,16 @@
   } catch {}
   const life = new AbortController();
   window.__pipOverlay = { dispose: () => life.abort() };
+
+  // Diagnostics: a small in-memory ring buffer (readable from DevTools as
+  // __pipLog in this content script's context) mirrored to console.debug.
+  const LOG = (window.__pipLog = window.__pipLog || []);
+  const log = (...parts) => {
+    const line = [new Date().toISOString().slice(11, 23), ...parts.map((x) => (typeof x === 'string' ? x : JSON.stringify(x)))].join(' ');
+    LOG.push(line);
+    if (LOG.length > 400) LOG.shift();
+    console.debug('[PiP]', ...parts);
+  };
   const alive = () => {
     if (chrome.runtime?.id) return true;
     life.abort();
@@ -299,7 +309,10 @@
 
       this.onResize = () => this.layout(true);
       addEventListener('resize', this.onResize);
-      this.keepAlive = setInterval(() => this.ensureMounted(), 1000);
+      this.keepAlive = setInterval(() => {
+        this.ensureMounted();
+        this.watchFrames();
+      }, 1000);
       this.mount();
     }
 
@@ -403,10 +416,58 @@
       return { x, y, w };
     }
 
+    // Freeze detector: no new frame for a few seconds while the source says it
+    // is playing → log both ends of the pipeline once per freeze.
+    watchFrames() {
+      if (this.dead || !this.pc) return;
+      const frames = this.video.getVideoPlaybackQuality?.().totalVideoFrames ?? 0;
+      const moving = frames !== this.lastFrames;
+      this.lastFrames = frames;
+      if (moving || !this.state.playing || this.state.ad) {
+        if (moving && this.frozenFor >= 4) log('frames resumed', { after: this.frozenFor });
+        if (moving) this.retries = 0;
+        this.frozenFor = 0;
+        return;
+      }
+      this.frozenFor = (this.frozenFor || 0) + 1;
+      if (this.frozenFor !== 4) return;
+      const pc = this.pc;
+      pc.getStats().then((stats) => {
+        const out = { frames, conn: pc.connectionState, ice: pc.iceConnectionState, video: [this.video.videoWidth, this.video.videoHeight], paused: this.video.paused };
+        stats.forEach((r) => {
+          if (r.type === 'inbound-rtp' && r.kind === 'video') out.in = { received: r.framesReceived, decoded: r.framesDecoded, dropped: r.framesDropped, bytes: r.bytesReceived, freezes: r.freezeCount, plis: r.pliCount, dec: r.decoderImplementation };
+        });
+        log('frozen', out);
+      }).catch(() => {});
+      send({ type: 'pip:cmd', cmd: 'diag', value: 'overlay frozen' });
+      this.reconnect('frozen');
+    }
+
+    // Build a fresh connection to the YouTube tab, e.g. after a network change
+    // killed the current one. Backs off 1s, 2s, 4s … 16s; frames flowing again
+    // reset the backoff.
+    reconnect(reason) {
+      if (this.dead || this.reconnectTimer) return;
+      const delay = Math.min(16000, 1000 * 2 ** (this.retries || 0));
+      this.retries = (this.retries || 0) + 1;
+      log('reconnect', { reason, in: delay, attempt: this.retries });
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = 0;
+        if (this.dead) return;
+        try {
+          this.pc?.close();
+        } catch {}
+        this.pendingCandidates = [];
+        this.frozenFor = 0;
+        this.startRtc().catch(() => {});
+      }, delay);
+    }
+
     destroy(animate) {
       if (this.dead) return;
       this.dead = true;
       clearInterval(this.keepAlive);
+      clearTimeout(this.reconnectTimer);
       clearTimeout(this.ctlTimer);
       clearTimeout(this.tapTimer);
       clearTimeout(this.wheelTimer);
@@ -476,8 +537,22 @@
 
     async startRtc() {
       const pc = (this.pc = new RTCPeerConnection());
+      // Each (re)connection attempt has its own generation, so late messages
+      // from a previous attempt are ignored on both ends.
+      const gen = (this.gen = (this.gen || 0) + 1);
       pc.addTransceiver('video', { direction: 'recvonly' });
+      log('rtc start', { sid: this.sid, gen });
+      pc.onconnectionstatechange = () => {
+        log('rtc state', pc.connectionState);
+        if (pc !== this.pc) return;
+        clearTimeout(this.disconnectTimer);
+        if (pc.connectionState === 'failed') this.reconnect('failed');
+        // "disconnected" can recover by itself; give it a moment first.
+        else if (pc.connectionState === 'disconnected') this.disconnectTimer = setTimeout(() => pc === this.pc && pc.connectionState !== 'connected' && this.reconnect('disconnected'), 2000);
+      };
       pc.ontrack = (e) => {
+        log('rtc track');
+        for (const ev of ['ended', 'mute', 'unmute']) e.track.addEventListener(ev, () => log('track', ev));
         try {
           e.receiver.jitterBufferTarget = 0;
         } catch {}
@@ -485,12 +560,12 @@
         this.video.play().catch(() => {});
       };
       pc.onicecandidate = (e) =>
-        send({ type: 'pip:rtc', sid: this.sid, data: { candidate: e.candidate ? e.candidate.toJSON() : null } });
+        send({ type: 'pip:rtc', sid: this.sid, data: { gen, candidate: e.candidate ? e.candidate.toJSON() : null } });
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      if (this.dead) return;
+      if (this.dead || pc !== this.pc) return;
       this.sentWant = this.wantHeight();
-      send({ type: 'pip:rtc', sid: this.sid, data: { sdp: boostBitrate(offer.sdp), want: this.sentWant } });
+      send({ type: 'pip:rtc', sid: this.sid, data: { gen, sdp: boostBitrate(offer.sdp), want: this.sentWant } });
     }
 
     // Device pixels the window shows at its resting size; the sender scales its
@@ -507,7 +582,7 @@
     }
 
     async onRtc(data) {
-      if (!this.pc || this.dead) return;
+      if (!this.pc || this.dead || (data.gen && data.gen !== this.gen)) return;
       if (data.sdp) {
         await this.pc.setRemoteDescription({ type: 'answer', sdp: data.sdp });
         for (const c of this.pendingCandidates) this.pc.addIceCandidate(c).catch(() => {});

@@ -14,6 +14,16 @@
   window.__pipSource = { dispose: () => life.abort() };
   const opts = { capture: true, signal: life.signal };
 
+  // Diagnostics: a small in-memory ring buffer (readable from DevTools as
+  // __pipLog in this content script's context) mirrored to console.debug.
+  const LOG = (window.__pipLog = window.__pipLog || []);
+  const log = (...parts) => {
+    const line = [new Date().toISOString().slice(11, 23), ...parts.map((x) => (typeof x === 'string' ? x : JSON.stringify(x)))].join(' ');
+    LOG.push(line);
+    if (LOG.length > 400) LOG.shift();
+    console.debug('[PiP]', ...parts);
+  };
+
   const MAX_SEND_HEIGHT = 720;
   const MAX_SEND_FPS = 30;
 
@@ -23,6 +33,8 @@
   let streamSrc = '';
   let pc = null;
   let sid = 0;
+  let gen = 0;
+  let attaching = null;
   let sender = null;
   let pendingCandidates = [];
   let wantHeight = MAX_SEND_HEIGHT;
@@ -163,8 +175,13 @@
         stream = video.captureStream();
         streamVideo = video;
         streamSrc = video.currentSrc;
-        stream.addEventListener('addtrack', () => attachTrack());
-      } catch {
+        log('capture', { src: streamSrc.slice(-12), ready: video.readyState, tracks: stream.getVideoTracks().length });
+        stream.addEventListener('addtrack', (e) => {
+          log('capture addtrack', e.track.kind);
+          attachTrack();
+        });
+      } catch (err) {
+        log('captureStream failed', String(err));
         stream = null;
         return null;
       }
@@ -175,11 +192,20 @@
   async function attachTrack() {
     if (!sender) return;
     const track = currentTrack();
-    if (track && sender.track !== track) {
+    if (track && sender.track !== track && attaching !== track) {
+      attaching = track;
       try {
         track.contentHint = 'motion';
         await sender.replaceTrack(track);
-      } catch {}
+        log('replaceTrack', { id: track.id.slice(0, 8), w: video?.videoWidth, h: video?.videoHeight });
+        for (const ev of ['ended', 'mute', 'unmute']) track.addEventListener(ev, () => log('track', ev, track.id.slice(0, 8)));
+      } catch (err) {
+        log('replaceTrack failed', String(err));
+      } finally {
+        attaching = null;
+      }
+    } else if (!track) {
+      log('attachTrack: no live track', { ready: video?.readyState, tracks: stream?.getVideoTracks().map((t) => t.readyState) });
     }
     tune();
   }
@@ -198,7 +224,34 @@
       p.encodings[0].scaleResolutionDownBy = Math.max(1, h / target);
       p.degradationPreference = 'maintain-resolution';
       await sender.setParameters(p);
+    } catch (err) {
+      log('setParameters failed', String(err));
+    }
+  }
+
+  // Snapshot of the sending side, logged when the floating window reports a freeze.
+  async function diagnose(reason) {
+    const v = video;
+    const q = v?.getVideoPlaybackQuality?.();
+    const out = {
+      reason,
+      visible: document.visibilityState,
+      video: v && { t: +v.currentTime.toFixed(2), paused: v.paused, ready: v.readyState, w: v.videoWidth, frames: q?.totalVideoFrames, dropped: q?.droppedVideoFrames, same: v === findVideo() },
+      track: sender?.track && { state: sender.track.readyState, muted: sender.track.muted, enabled: sender.track.enabled },
+      pc: pc && { conn: pc.connectionState, ice: pc.iceConnectionState },
+    };
+    try {
+      (await pc?.getStats())?.forEach((r) => {
+        if (r.type === 'outbound-rtp' && r.kind === 'video') out.out = { sent: r.framesSent, encoded: r.framesEncoded, fps: r.framesPerSecond, w: r.frameWidth, h: r.frameHeight, limit: r.qualityLimitationReason, enc: r.encoderImplementation };
+        if (r.type === 'media-source' && r.kind === 'video') out.srcFrames = r.frames;
+      });
     } catch {}
+    // Frames decoded by the YouTube <video> over one second: 0 means the
+    // browser stopped decoding video in this (hidden) tab.
+    const f0 = q?.totalVideoFrames;
+    await new Promise((r) => setTimeout(r, 1000));
+    out.decodedPerSec = (v?.getVideoPlaybackQuality?.().totalVideoFrames ?? 0) - (f0 ?? 0);
+    log('diagnose', out);
   }
 
   function closePc() {
@@ -222,10 +275,14 @@
     if (data.sdp) {
       closePc();
       sid = msgSid;
+      gen = data.gen || 0;
       if (data.want) wantHeight = data.want;
       video = findVideo() || video;
       const mine = (pc = new RTCPeerConnection());
-      mine.onicecandidate = (e) => send({ type: 'src:rtc', sid: msgSid, data: { candidate: e.candidate ? e.candidate.toJSON() : null } });
+      log('rtc offer', { sid: msgSid, gen, want: wantHeight });
+      const myGen = gen;
+      mine.onconnectionstatechange = () => log('rtc state', mine.connectionState);
+      mine.onicecandidate = (e) => send({ type: 'src:rtc', sid: msgSid, data: { gen: myGen, candidate: e.candidate ? e.candidate.toJSON() : null } });
       await mine.setRemoteDescription({ type: 'offer', sdp: data.sdp });
       if (pc !== mine) return;
       const tr = mine.getTransceivers()[0];
@@ -235,14 +292,14 @@
       const answer = await mine.createAnswer();
       await mine.setLocalDescription(answer);
       if (pc !== mine) return;
-      send({ type: 'src:rtc', sid: msgSid, data: { sdp: mine.localDescription.sdp } });
+      send({ type: 'src:rtc', sid: msgSid, data: { gen: myGen, sdp: mine.localDescription.sdp } });
       tune();
       for (const c of pendingCandidates) mine.addIceCandidate(c).catch(() => {});
       pendingCandidates = [];
     } else if (data.want && msgSid === sid) {
       wantHeight = data.want;
       tune();
-    } else if (data.candidate && msgSid === sid) {
+    } else if (data.candidate && msgSid === sid && (data.gen || 0) === gen) {
       if (pc?.remoteDescription) pc.addIceCandidate(data.candidate).catch(() => {});
       else pendingCandidates.push(data.candidate);
     }
@@ -251,6 +308,7 @@
   // ---- commands -------------------------------------------------------------
 
   function command(cmd, value) {
+    if (cmd === 'diag') return diagnose(value);
     const v = findVideo();
     if (!v) return;
     switch (cmd) {
