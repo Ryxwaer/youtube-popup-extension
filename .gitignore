@@ -6,6 +6,8 @@ dist/
 !extension/icons/*.png
 !store/*.png
 dev/*/
+!dev/promo-video/
+dev/promo-video/fonts/
 dev/feas*.mjs
 dev/cws*.mjs
 dev/round2-validation.json

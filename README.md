@@ -57,6 +57,18 @@ node perf.mjs 1                             # CPU / memory with the extension
 YouTube stops playback after about 30 seconds in headless automation (with or
 without the extension), so the tests keep each session short.
 
+### Promo video
+
+`dev/promo-video/` records the store video from a real, headful Brave: the take is
+scripted with touch events over CDP and captured natively at 60 fps with
+gpu-screen-recorder, then composited into a tablet frame with captions.
+
+```bash
+node dev/promo-video/record.mjs /tmp/take       # Brave on --remote-debugging-port=9333,
+                                                # viewport sized to 1194x728, claude.ai logged in
+node dev/promo-video/render.mjs /tmp/take promo.mp4   # needs fonts/InterVariable.ttf
+```
+
 ### Diagnostics
 
 Off by default. To turn them on, open `chrome://extensions`, click **service worker**
