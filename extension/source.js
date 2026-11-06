@@ -19,9 +19,10 @@
   // buffer (__pipLog in this content script's context) mirrored to console.debug.
   let debug = false;
   chrome.storage.local.get('pipDebug').then((r) => (debug = !!r.pipDebug), () => {});
-  chrome.storage.onChanged.addListener((changes, area) => {
+  const onStorage = (changes, area) => {
     if (area === 'local' && 'pipDebug' in changes) debug = !!changes.pipDebug.newValue;
-  });
+  };
+  chrome.storage.onChanged.addListener(onStorage);
   const log = (...parts) => {
     if (!debug) return;
     const buf = (window.__pipLog ||= []);
@@ -100,8 +101,19 @@
     };
   }
 
+  // Switching to a tab whose video is already playing (it may have started while
+  // the tab was hidden) counts as starting to watch it, once it shows frames, so
+  // it takes the floating window over from another playing tab.
+  let claim = false;
+
   function report(important, started = false) {
-    send({ type: 'src:state', important, started, state: snapshotState() });
+    const state = snapshotState();
+    if (!state.visible) claim = false;
+    else if (claim && state.playing && state.ready) {
+      claim = false;
+      started = true;
+    }
+    send({ type: 'src:state', important, started, state });
   }
 
   function frameSnapshot() {
@@ -163,7 +175,14 @@
     },
     opts,
   );
-  document.addEventListener('visibilitychange', () => report(true), opts);
+  document.addEventListener(
+    'visibilitychange',
+    () => {
+      claim = document.visibilityState === 'visible';
+      report(true);
+    },
+    opts,
+  );
   // Back/forward cache: the peer connection belongs to the old visit.
   addEventListener('pagehide', (e) => e.persisted && closePc(), opts);
   addEventListener('pageshow', (e) => e.persisted && report(true), opts);
@@ -368,6 +387,7 @@
     closePc();
     try {
       chrome.runtime.onMessage.removeListener(onMessage);
+      chrome.storage.onChanged.removeListener(onStorage);
     } catch {}
   });
 })();

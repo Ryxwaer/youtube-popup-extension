@@ -22,9 +22,10 @@
   // buffer (__pipLog in this content script's context) mirrored to console.debug.
   let debug = false;
   chrome.storage.local.get('pipDebug').then((r) => (debug = !!r.pipDebug), () => {});
-  chrome.storage.onChanged.addListener((changes, area) => {
+  const onStorage = (changes, area) => {
     if (area === 'local' && 'pipDebug' in changes) debug = !!changes.pipDebug.newValue;
-  });
+  };
+  chrome.storage.onChanged.addListener(onStorage);
   const log = (...parts) => {
     if (!debug) return;
     const buf = (window.__pipLog ||= []);
@@ -437,9 +438,16 @@
       const frames = this.video.getVideoPlaybackQuality?.().totalVideoFrames ?? 0;
       const moving = frames !== this.lastFrames;
       this.lastFrames = frames;
-      if (moving || !this.state.playing || this.state.ad) {
+      // Paused, buffering or showing an ad: the source has no frames to send.
+      if (moving || !this.state.playing || !this.state.ready || this.state.ad) {
         if (moving && this.frozenFor >= 4) log('frames resumed', { after: this.frozenFor });
-        if (moving) this.retries = 0;
+        if (moving) {
+          // The link recovered by itself: don't tear it down for a retry
+          // that was queued while it was stuck.
+          this.retries = 0;
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = 0;
+        }
         this.frozenFor = 0;
         return;
       }
@@ -1090,6 +1098,7 @@
     ui = null;
     try {
       chrome.runtime.onMessage.removeListener(onMessage);
+      chrome.storage.onChanged.removeListener(onStorage);
     } catch {}
   });
 
