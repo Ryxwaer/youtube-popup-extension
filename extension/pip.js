@@ -300,6 +300,14 @@
       this.el.addEventListener('pointermove', (e) => this.onMove(e));
       this.el.addEventListener('pointerup', (e) => this.onUp(e));
       this.el.addEventListener('pointercancel', (e) => this.onUp(e, true));
+      // touch-action alone isn't always honoured on a window that moves by
+      // transform (the compositor's touch regions can lag behind it), and the
+      // browser then turns a drag into a page scroll and cancels the pointer.
+      // Taps and gestures all run on pointer events, so nothing needs the
+      // touch defaults.
+      const noScroll = (e) => e.cancelable && e.preventDefault();
+      this.el.addEventListener('touchstart', noScroll, { passive: false });
+      this.el.addEventListener('touchmove', noScroll, { passive: false });
       this.el.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
       this.el.addEventListener('click', (e) => {
         if (!e.isTrusted || e.detail !== 0) return;
