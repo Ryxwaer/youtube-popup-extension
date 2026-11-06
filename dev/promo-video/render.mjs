@@ -2,7 +2,11 @@
 // frames inside a dark tablet browser, touch indicators, captions, an end card
 // and the video's own soundtrack.
 //
-//   node render.mjs <takedir> <out.mp4> [--seconds 30] [--still T]
+//   node render.mjs <takedir> <out.mp4> [--seconds 30] [--tail 4] [--still T]
+//
+// --seconds is how much footage to use; --tail adds that many seconds after it
+// for the end card (on the held last frame, with the audio fading out). Without
+// --tail the end card fades in over the footage at the recorder's 'end' cue.
 import puppeteer from 'puppeteer-core';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,7 +15,9 @@ import { spawn, execFileSync } from 'node:child_process';
 const args = process.argv.slice(2);
 const opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const [TAKE, OUT] = args.filter((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--')).map((p) => path.resolve(p));
-const SECONDS = Number(opt('--seconds', 30));
+const FOOTAGE = Number(opt('--seconds', 30));
+const TAIL = Number(opt('--tail', 0));
+const SECONDS = FOOTAGE + TAIL;
 const STILL = opt('--still', null);
 const FPS = 60;
 const take = JSON.parse(fs.readFileSync(path.join(TAKE, 'take.json'), 'utf8'));
@@ -21,7 +27,7 @@ const here = import.meta.dirname;
 // --- timeline -----------------------------------------------------------------------
 // Captions follow the cues the recorder logged; each fades out just before the next.
 const cues = take.events.filter((e) => e.kind === 'cue').map((e) => ({ a: e.t - T0 + 0.05, text: e.text }));
-const END_AT = take.events.find((e) => e.kind === 'end').t - T0;
+const END_AT = TAIL ? FOOTAGE : take.events.find((e) => e.kind === 'end').t - T0;
 cues.forEach((q, i) => (q.b = (cues[i + 1]?.a ?? END_AT) - 0.2));
 const fadeWin = (T, a, b, f = 0.22) => Math.max(0, Math.min(1, (T - a) / f, (b - T) / f));
 function caption(T) {
@@ -61,11 +67,11 @@ if (!fs.existsSync(path.join(FRAMES, 'done'))) {
   fs.mkdirSync(FRAMES, { recursive: true });
   execFileSync('ffmpeg', ['-v', 'error', '-i', path.join(TAKE, SCR.file),
     '-vf', `select=gte(n\\,${first}),crop=${crop.w}:${crop.h}:${crop.x}:${crop.y}`, '-fps_mode', 'passthrough',
-    '-frames:v', String(SECONDS * FPS + 2), '-q:v', '2', path.join(FRAMES, '%05d.jpg')]);
+    '-frames:v', String(FOOTAGE * FPS + 2), '-q:v', '2', path.join(FRAMES, '%05d.jpg')]);
   fs.writeFileSync(path.join(FRAMES, 'done'), JSON.stringify(crop));
 }
 console.log('viewport in capture', crop);
-const frameAt = (T) => ({ tab: tabAt(T0 + T), file: 'file://' + path.join(FRAMES, String(Math.min(SECONDS * FPS, Math.round(T * FPS)) + 1).padStart(5, '0') + '.jpg') });
+const frameAt = (T) => ({ tab: tabAt(T0 + T), file: 'file://' + path.join(FRAMES, String(Math.min(FOOTAGE * FPS, Math.round(T * FPS)) + 1).padStart(5, '0') + '.jpg') });
 function titlesAt(t) {
   const out = { yt: take.tabs.yt.title, claude: take.tabs.claude.title, url: { yt: take.tabs.yt.url, claude: take.tabs.claude.url } };
   for (const e of take.events) if (e.kind === 'title' && e.t <= t) { out[e.tab] = e.title; out.url[e.tab] = e.url; }
@@ -146,7 +152,7 @@ if (STILL != null) {
 }
 
 // Soundtrack: the trailer's own audio, aligned with the video time at T0.
-const vt = take.video.filter((s) => s.t >= T0 && s.t <= T0 + SECONDS);
+const vt = take.video.filter((s) => s.t >= T0 && s.t <= T0 + FOOTAGE);
 const audioStart = vt.reduce((a, s) => a + (s.vt - (s.t - T0)), 0) / vt.length;
 const audioFile = path.join(TAKE, 'audio.m4a');
 if (!fs.existsSync(audioFile)) {
@@ -160,7 +166,7 @@ const ff = spawn('ffmpeg', [
   '-ss', audioStart.toFixed(3), '-t', String(SECONDS), '-i', audioFile,
   '-map', '0:v', '-map', '1:a',
   '-c:v', 'libx264', '-preset', 'slow', '-crf', '15', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
-  '-af', `afade=t=in:d=0.25,afade=t=out:st=${SECONDS - 1.6}:d=1.6`, '-c:a', 'aac', '-b:a', '192k',
+  '-af', `afade=t=in:d=0.25,afade=t=out:st=${TAIL ? FOOTAGE : SECONDS - 1.6}:d=${TAIL || 1.6}`, '-c:a', 'aac', '-b:a', '192k',
   '-shortest', OUT,
 ], { stdio: ['pipe', 'inherit', 'inherit'] });
 const N = SECONDS * FPS;
