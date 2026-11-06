@@ -45,9 +45,10 @@ Not affiliated with YouTube or Google.
 
 **Images:** `screenshot-1-corner.png` … `screenshot-5-controls.png` (1280×800),
 `promo-small-440x280.png`, `promo-marquee-1400x560.png`, store icon
-`extension/icons/icon128.png`. All made from the promo take with
-`dev/promo-video/` (`shots.mjs` + `stills.mjs`). The video frames in them are from the
-Azuki Elementals trailer (© Azuki).
+`extension/icons/icon128.png`. The screenshots are poses from the promo take
+(`dev/promo-video/shots.mjs` + `stills.mjs`) and show the Azuki Elementals trailer
+(© Azuki) playing in claude.ai. The tiles (`tiles.mjs`) are our own artwork only: a
+generic browser and an abstract scene, with no third-party UI or footage.
 
 **Promo video:** https://www.youtube.com/watch?v=Pl1ZqiW49xI (unlisted).
 
