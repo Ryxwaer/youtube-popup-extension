@@ -58,20 +58,23 @@
     } catch {}
   };
 
+  const PREVIEW = 'ytd-video-preview, #inline-preview-player, #video-preview';
+
   function findVideo() {
     const shorts = location.pathname.startsWith('/shorts');
     const selectors = shorts
       ? ['ytd-reel-video-renderer[is-active] video', 'ytm-reel-item-renderer[is-active] video', '#shorts-player video', '#movie_player video']
       : ['#movie_player video', 'ytmusic-player video', 'video.html5-main-video'];
     for (const sel of selectors) {
-      const v = document.querySelector(sel);
-      if (v) return v;
+      // Hover / inline previews reuse the player's markup but aren't what you
+      // are watching.
+      for (const v of document.querySelectorAll(sel)) if (!v.closest(PREVIEW)) return v;
     }
     return null;
   }
 
   function isMain(v) {
-    return v instanceof HTMLVideoElement && !v.closest('ytd-video-preview, #inline-preview-player, #video-preview') && v === findVideo();
+    return v instanceof HTMLVideoElement && v === findVideo();
   }
 
   function snapshotState() {
