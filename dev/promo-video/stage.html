@@ -68,6 +68,11 @@
   #end p { margin-top: 10px; font-size: 36px; font-weight: 500; letter-spacing: -0.015em; color: rgba(255,255,255,.72); }
   #end .pill { margin-top: 42px; padding: 14px 30px; border-radius: 999px; font-size: 24px; font-weight: 600;
     background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); color: #f2f2f4; }
+
+  /* Store screenshot layout (stage.html#shot): 1280 x 800, one-line caption. */
+  html.shot, html.shot body { width: 1280px; height: 800px; }
+  html.shot #caption { top: 22px; height: 52px; line-height: 52px; font-size: 34px; }
+  html.shot #device { top: 92px; border-radius: 40px; }
 </style>
 </head>
 <body>
@@ -113,7 +118,11 @@
 <script>
   const $ = (s) => document.querySelector(s);
   const screenEl = $('#screen');
-  const SCALE = (940 - 44) / 834;
+  const SHOT = location.hash === '#shot';
+  if (SHOT) document.documentElement.classList.add('shot');
+  const DEVICE_H = SHOT ? 692 : 940;
+  const SCALE = (DEVICE_H - 44) / 834;
+  $('#device').style.height = `${DEVICE_H}px`;
   screenEl.style.transform = `scale(${SCALE})`;
   $('#device').style.width = `${1194 * SCALE + 44}px`;
   $('#device').style.marginLeft = `${-(1194 * SCALE + 44) / 2}px`;

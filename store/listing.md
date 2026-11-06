@@ -23,7 +23,7 @@ HOW IT WORKS
 • Same video, same sound: the picture is streamed live from your YouTube tab, so nothing reloads, there are no extra ads, and the audio never stops.
 • Place it anywhere along the edge: flick it and it glides to the left or right side, at whatever height you leave it.
 • Hide it: push it into the edge and it tucks away behind a small tab while the audio keeps playing. Tug the tab to bring it back.
-• Resize: double-click it, or pinch on a trackpad, to switch between three sizes.
+• Resize: pinch it on a touchscreen or trackpad, or double-tap it, to switch between three sizes.
 • Controls: tap the video for play/pause, skip back or forward 10 seconds, a progress bar, close, and a button that takes you back to the YouTube tab.
 • It remembers where you put it and how big you made it.
 
@@ -43,10 +43,13 @@ Not affiliated with YouTube or Google.
 **Homepage URL:** https://github.com/Ryxwaer/youtube-popup-extension
 **Support URL:** https://github.com/Ryxwaer/youtube-popup-extension/issues
 
-**Images:** `screenshot-1-corner.png` … `screenshot-5-small.png` (1280×800),
+**Images:** `screenshot-1-corner.png` … `screenshot-5-controls.png` (1280×800),
 `promo-small-440x280.png`, `promo-marquee-1400x560.png`, store icon
-`extension/icons/icon128.png`. Video frames are from Big Buck Bunny
-(© Blender Foundation, CC BY 3.0).
+`extension/icons/icon128.png`. All made from the promo take with
+`dev/promo-video/` (`shots.mjs` + `stills.mjs`). The video frames in them are from the
+Azuki Elementals trailer (© Azuki).
+
+**Promo video:** https://www.youtube.com/watch?v=Pl1ZqiW49xI (unlisted).
 
 ## Privacy practices
 
