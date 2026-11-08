@@ -294,8 +294,14 @@ chrome.runtime.onStartup.addListener(() => {
   chrome.storage.session.clear().catch(() => {});
 });
 
-// Make the extension work in tabs that were already open when it was installed.
-chrome.runtime.onInstalled.addListener(async () => {
+// Make the extension work in tabs that were already open when it was installed,
+// and greet a new install with the settings page (it doubles as the guide).
+chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+  if (reason === 'install') {
+    chrome.management.getSelf().then((self) => {
+      if (self.installType !== 'development') chrome.runtime.openOptionsPage();
+    }, () => {});
+  }
   const tabs = await chrome.tabs.query({});
   for (const tab of tabs) {
     if (!tab.url || !/^https?:/.test(tab.url)) continue;

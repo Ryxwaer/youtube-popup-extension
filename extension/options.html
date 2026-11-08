@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>PiP Anywhere</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <img class="app-icon" src="icons/icon128.png" alt="" width="72" height="72">
+      <div>
+        <h1>PiP Anywhere</h1>
+        <p>Your YouTube video, floating on every tab.</p>
+      </div>
+    </header>
+
+    <section>
+      <h2>Sizes</h2>
+      <div class="group">
+        <div class="sizes" id="sizes" role="group" aria-label="Window sizes"></div>
+      </div>
+      <p class="footnote" id="size-note">Pinch or double-tap the window to switch between these.</p>
+    </section>
+
+    <section>
+      <h2>How to use</h2>
+      <ul class="group guide">
+        <li>
+          <span class="glyph blue"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><rect x="12" y="11.5" width="7" height="5.5" rx="1.4" class="fill"/></svg></span>
+          <div><strong>Play, then switch tabs</strong><span>The video follows you to every tab.</span></div>
+        </li>
+        <li>
+          <span class="glyph green"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></span>
+          <div><strong>Drag it anywhere</strong><span>Flick it and it glides to an edge.</span></div>
+        </li>
+        <li>
+          <span class="glyph orange"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-6.5 6.5M4 20l6.5-6.5"/></svg></span>
+          <div><strong>Pinch to resize</strong><span>Or double-tap it. Double-click works too.</span></div>
+        </li>
+        <li>
+          <span class="glyph purple"><svg viewBox="0 0 24 24"><path d="M9 6l-6 6 6 6"/><path d="M21 4v16" /></svg></span>
+          <div><strong>Tuck it away</strong><span>Push it into the edge. Pull the tab to bring it back.</span></div>
+        </li>
+        <li>
+          <span class="glyph pink"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" class="fill"/></svg></span>
+          <div><strong>Tap for controls</strong><span>Play, pause, skip, or go back to YouTube.</span></div>
+        </li>
+      </ul>
+    </section>
+
+    <footer>
+      <p class="privacy">No account, no tracking. The video never leaves your browser.</p>
+      <p><span id="version"></span> · <a href="https://github.com/Ryxwaer/youtube-popup-extension" target="_blank" rel="noopener">Source code</a></p>
+    </footer>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>

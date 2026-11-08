@@ -147,7 +147,7 @@ try {
       await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:points(35)});
       await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:points(60)});
       await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();await sleep(1000);
-      const pinched=await pipBox(target);check('Two-pointer pinch settles to detent',pinched.w>b.w&&[180,270,379.47].some(w=>Math.abs(pinched.w-w)<1),{before:b.w,after:pinched.w});
+      const pinched=await pipBox(target);check('Two-pointer pinch settles to detent',pinched.w>b.w&&[180,270,379.47,505.95].some(w=>Math.abs(pinched.w-w)<1),{before:b.w,after:pinched.w});
       await target.setViewport({width:320,height:480,deviceScaleFactor:dpr});await sleep(500);const narrow=await pipBox(target);
       check('Viewport resize fits window',narrow.x>=0&&narrow.y>=0&&narrow.x+narrow.w<=320&&narrow.y+narrow.h<=480,narrow);await shot(target,'narrow-viewport');
       await target.setViewport({width:1440,height:819,deviceScaleFactor:dpr});await sleep(500);

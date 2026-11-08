@@ -12,7 +12,9 @@ away against the edge.
 - **Drag, snap and hide.** Throw it with momentum and it snaps to the left or right
   edge at any height. Push it into the edge and it hides behind a small tab; tug the
   tab to bring it back.
-- **Resize.** Double-click it or pinch on a trackpad to switch between three sizes.
+- **Resize.** Double-click it or pinch on a trackpad to switch between sizes.
+- **Settings.** Click the toolbar icon to choose which of the four sizes (small to
+  extra large) you can switch between, and for a short guide to the gestures.
 - **Controls.** Tap to show close, back to the video tab, skip back/forward 10 seconds,
   play/pause, and a progress bar.
 - **Private.** No accounts, no analytics, no network requests. See [PRIVACY.md](PRIVACY.md).
@@ -31,6 +33,7 @@ From the Chrome Web Store (link coming once the listing is approved), or from so
 | --- | --- |
 | `extension/source.js` | Runs on youtube.com. Reports the player's state and streams the `<video>` frames with `captureStream()` over a local `RTCPeerConnection`, scaled to the size the floating window actually shows. |
 | `extension/pip.js` | Runs on every page but stays idle until needed. Draws the floating window in a closed shadow root in the browser's top layer, with spring physics, edge snapping, hiding and resizing. |
+| `extension/options.html` | Settings page, also the toolbar popup: which sizes are on (saved in `chrome.storage.local`, picked up live by `pip.js`) and a short guide. Opens once after a store install. |
 | `extension/background.js` | Service worker. Tracks which YouTube tab is playing and which tab shows the window, and relays state, commands and WebRTC signaling between them. |
 
 The video never leaves your computer: the WebRTC connection is between two tabs of

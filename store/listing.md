@@ -23,7 +23,7 @@ HOW IT WORKS
 • Same video, same sound: the picture is streamed live from your YouTube tab, so nothing reloads, there are no extra ads, and the audio never stops.
 • Place it anywhere along the edge: flick it and it glides to the left or right side, at whatever height you leave it.
 • Hide it: push it into the edge and it tucks away behind a small tab while the audio keeps playing. Tug the tab to bring it back.
-• Resize: pinch it on a touchscreen or trackpad, or double-tap it, to switch between three sizes.
+• Resize: pinch it on a touchscreen or trackpad, or double-tap it, to switch between sizes. Pick which of the four sizes you want in the settings (click the toolbar icon).
 • Controls: tap the video for play/pause, skip back or forward 10 seconds, a progress bar, close, and a button that takes you back to the YouTube tab.
 • It remembers where you put it and how big you made it.
 
@@ -50,7 +50,7 @@ Not affiliated with YouTube or Google.
 (© Azuki) playing in claude.ai. The tiles (`tiles.mjs`) are our own artwork only: a
 generic browser and an abstract scene, with no third-party UI or footage.
 
-**Promo video:** https://www.youtube.com/watch?v=Pl1ZqiW49xI (unlisted).
+**Promo video:** https://www.youtube.com/watch?v=sXBby2GZxbY (unlisted).
 
 ## Privacy practices
 

@@ -17,13 +17,39 @@
   const life = new AbortController();
   window.__pipOverlay = { dispose: () => life.abort() };
 
+  // Size detents (px², aspect-independent): about 180, 270, 380 and 505 px wide
+  // at 16:9. Which ones double-tap and pinch snap to is chosen on the settings
+  // page (options.js keeps the same ids and defaults).
+  const SIZES = { s: 18225, m: 41006, l: 81000, xl: 144000 };
+  const DEFAULT_SIZES = ['m', 'l', 'xl'];
+  const SIZES_KEY = 'pipSizes';
+  let AREAS = DEFAULT_SIZES.map((k) => SIZES[k]);
+  const setSizes = (ids) => {
+    const on = Array.isArray(ids) ? ids.filter((k) => k in SIZES) : [];
+    AREAS = (on.length ? on : DEFAULT_SIZES).map((k) => SIZES[k]).sort((a, b) => a - b);
+  };
+  const nearestArea = (a) => {
+    let best = AREAS[0];
+    for (const d of AREAS) if (Math.abs(Math.log(d / a)) < Math.abs(Math.log(best / a))) best = d;
+    return best;
+  };
+  let ui = null;
+
   // Diagnostics, off unless enabled with chrome.storage.local.set({ pipDebug: true })
   // (e.g. from the service worker's DevTools console). When on: a small ring
   // buffer (__pipLog in this content script's context) mirrored to console.debug.
   let debug = false;
-  chrome.storage.local.get('pipDebug').then((r) => (debug = !!r.pipDebug), () => {});
+  chrome.storage.local.get(['pipDebug', SIZES_KEY]).then((r) => {
+    debug = !!r.pipDebug;
+    setSizes(r[SIZES_KEY]);
+  }, () => {});
   const onStorage = (changes, area) => {
-    if (area === 'local' && 'pipDebug' in changes) debug = !!changes.pipDebug.newValue;
+    if (area !== 'local') return;
+    if ('pipDebug' in changes) debug = !!changes.pipDebug.newValue;
+    if (SIZES_KEY in changes) {
+      setSizes(changes[SIZES_KEY].newValue);
+      ui?.sizesChanged();
+    }
   };
   chrome.storage.onChanged.addListener(onStorage);
   const log = (...parts) => {
@@ -44,8 +70,7 @@
   const EDGE = 8; // inset from the viewport edges
   const STASH_VISIBLE = 24; // width of the strip left on screen when stashed
   const UNSTASH_PULL = 24; // drag distance out of the edge that brings it back
-  const AREAS = [18225, 41006, 81000]; // size detents (px²), aspect-independent
-  const DEFAULT_POS = { side: 'right', yFrac: 1, area: AREAS[2], stashed: false };
+  const DEFAULT_POS = { side: 'right', yFrac: 1, area: SIZES.l, stashed: false };
   const MOVE_SPRING = { response: 0.42, damping: 0.82 };
   const SIZE_SPRING = { response: 0.38, damping: 0.9 };
   const FLY_SPRING = { response: 0.5, damping: 0.86 };
@@ -371,9 +396,12 @@
 
     async show(entrance, rect) {
       try {
-        const saved = (await chrome.storage.local.get(STORE_KEY))[STORE_KEY];
+        const got = await chrome.storage.local.get([STORE_KEY, SIZES_KEY]);
+        setSizes(got[SIZES_KEY]);
+        const saved = got[STORE_KEY];
         if (saved && saved.side) this.pos = { ...DEFAULT_POS, ...saved };
       } catch {}
+      this.pos.area = nearestArea(this.pos.area);
       if (this.dead) return;
       this.applyState(this.state);
       const target = this.targetFor(this.pos);
@@ -961,12 +989,16 @@
     }
 
     settleSize() {
-      const a = this.pos.area;
-      let best = AREAS[0];
-      for (const d of AREAS) if (Math.abs(Math.log(d / a)) < Math.abs(Math.log(best / a))) best = d;
-      this.pos = { ...this.pos, area: best };
+      this.pos = { ...this.pos, area: nearestArea(this.pos.area) };
       this.retarget(this.targetFor(this.pos));
       this.savePos();
+    }
+
+    // The enabled sizes changed on the settings page: move off a size that was
+    // just turned off (unless a gesture is in progress; it settles on release).
+    sizesChanged() {
+      if (this.dead || this.drag || this.pinch || AREAS.includes(this.pos.area)) return;
+      this.settleSize();
     }
 
     toggleSize() {
@@ -1060,7 +1092,6 @@
 
   // ---- wiring ---------------------------------------------------------------------
 
-  let ui = null;
 
   const onMessage = (msg, _sender, reply) => {
     if (!alive()) return;
