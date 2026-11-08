@@ -6,8 +6,9 @@
   --tertiary: rgba(60, 60, 67, 0.3);
   --separator: rgba(60, 60, 67, 0.18);
   --fill: rgba(120, 120, 128, 0.12);
-  --accent: #007aff;
-  --red: #ff3b30;
+  --accent: #e53935;
+  --selection: rgba(229, 57, 53, 0.08);
+  --red: var(--accent);
   --screen: #e5e5ea;
   --screen-edge: rgba(0, 0, 0, 0.06);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.04);
@@ -23,8 +24,9 @@
     --tertiary: rgba(235, 235, 245, 0.3);
     --separator: rgba(84, 84, 88, 0.6);
     --fill: rgba(120, 120, 128, 0.24);
-    --accent: #0a84ff;
-    --red: #ff453a;
+    --accent: #ff625b;
+    --selection: rgba(255, 98, 91, 0.12);
+    --red: var(--accent);
     --screen: #2c2c2e;
     --screen-edge: rgba(255, 255, 255, 0.06);
     --shadow: none;
@@ -79,7 +81,7 @@ h2 {
   margin: 0 0 8px 16px;
   font-size: 13px;
   font-weight: 400;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.02em;
   color: var(--secondary);
 }
@@ -137,8 +139,8 @@ h2 {
   aspect-ratio: 16 / 10;
   margin-bottom: 8px;
   border-radius: 7px;
-  background: var(--screen);
-  box-shadow: inset 0 0 0 1px var(--screen-edge);
+  background: transparent;
+  border: 1.5px solid var(--tertiary);
 }
 
 .win {
@@ -147,43 +149,16 @@ h2 {
   bottom: 8%;
   aspect-ratio: 16 / 9;
   border-radius: 3px;
-  background: var(--tertiary);
+  background: transparent;
+  border: 1.5px solid var(--secondary);
   transition: background-color 0.25s;
 }
-.size.on .win {
-  background: linear-gradient(135deg, #5ac8fa, var(--accent));
-  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.35);
-}
+.size.on { background: var(--selection); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.size.on .win { background: var(--accent); border-color: var(--accent); box-shadow: 0 2px 6px var(--selection); }
 
 .label { font-size: 14px; font-weight: 600; white-space: nowrap; }
 .dims { font-size: 12px; color: var(--secondary); font-variant-numeric: tabular-nums; }
 
-.check {
-  position: absolute;
-  top: 16px;
-  right: 12px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1.5px solid var(--tertiary);
-  background: var(--card);
-  transition: background-color 0.2s, border-color 0.2s, transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
-}
-.check svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: #fff;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 12;
-  stroke-dashoffset: 12;
-  transition: stroke-dashoffset 0.25s ease-out 0.05s;
-}
-.size.on .check { background: var(--accent); border-color: var(--accent); transform: scale(1.06); }
-.size.on .check svg { stroke-dashoffset: 0; }
 .size:not(.on) .label { color: var(--secondary); }
 
 html:not(.ready) * { transition: none !important; }
@@ -222,7 +197,7 @@ html:not(.ready) * { transition: none !important; }
   height: 30px;
   margin-top: 2px;
   border-radius: 7px;
-  color: #fff;
+  color: var(--label);
 }
 .glyph svg {
   width: 19px;
@@ -233,20 +208,6 @@ html:not(.ready) * { transition: none !important; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.glyph .fill { fill: currentColor; stroke: none; }
-.blue { background: #007aff; }
-.green { background: #34c759; }
-.orange { background: #ff9500; }
-.purple { background: #af52de; }
-.pink { background: #ff2d55; }
-
-/* ---- footer --------------------------------------------------------------- */
-
-footer { text-align: center; font-size: 12px; color: var(--secondary); }
-footer p { margin: 4px 0; }
-footer a { color: var(--accent); text-decoration: none; }
-footer a:hover { text-decoration: underline; }
-
 /* ---- toolbar popup ---------------------------------------------------------- */
 /* Chrome caps popups at 800 × 600, so the popup is the same page, tighter. */
 
@@ -261,7 +222,6 @@ footer a:hover { text-decoration: underline; }
 .popup .sizes { gap: 4px; padding: 8px; }
 .popup .size { padding: 8px 4px 9px; }
 .popup .screen { margin-bottom: 6px; border-radius: 6px; }
-.popup .check { top: 13px; right: 9px; width: 17px; height: 17px; }
 .popup .label { font-size: 12.5px; }
 .popup .dims { font-size: 11px; }
 .popup .footnote { font-size: 12px; margin-top: 6px; }

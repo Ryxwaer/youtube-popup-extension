@@ -15,7 +15,6 @@ const ASPECT = 16 / 9;
 const SCREEN_W = 1440; // the laptop-sized viewport the previews are drawn against
 
 if (chrome.extension?.getViews?.({ type: 'popup' }).includes(window)) document.documentElement.classList.add('popup');
-document.getElementById('version').textContent = 'Version ' + chrome.runtime.getManifest().version;
 
 const box = document.getElementById('sizes');
 const note = document.getElementById('size-note');
@@ -32,8 +31,7 @@ for (const size of SIZES) {
   btn.innerHTML = `
     <span class="screen"><span class="win" style="width:${((w / SCREEN_W) * 100).toFixed(1)}%"></span></span>
     <span class="label">${size.name}</span>
-    <span class="dims">${w} × ${Math.round(w / ASPECT)}</span>
-    <span class="check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 8.4l2.6 2.6L12 5.4"/></svg></span>`;
+    <span class="dims">${w} × ${Math.round(w / ASPECT)}</span>`;
   btn.addEventListener('click', () => toggle(size.id, btn));
   box.append(btn);
   buttons.set(size.id, btn);
