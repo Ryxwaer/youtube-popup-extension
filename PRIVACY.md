@@ -1,8 +1,8 @@
-# Privacy Policy – PiP Anywhere
+# Privacy Policy – PiP for YouTube
 
 _Last updated: November 2, 2026_
 
-PiP Anywhere does not collect, store, sell or share any personal data.
+PiP for YouTube does not collect, store, sell or share any personal data.
 
 ## What the extension accesses
 

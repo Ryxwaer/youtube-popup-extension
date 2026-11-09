@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "PiP Anywhere – Floating Player for YouTube",
-  "short_name": "PiP Anywhere",
+  "name": "Picture in Picture for YouTube – iOS-style Floating Player",
+  "short_name": "PiP for YouTube",
   "version": "1.0.2",
-  "description": "Keeps your YouTube video playing in a floating picture-in-picture window on every tab. Drag it, snap it to an edge or tuck it away.",
+  "description": "A floating mini player for YouTube on every tab. Drag it, pinch to resize, tuck it into the edge, just like PiP on iPhone.",
   "homepage_url": "https://github.com/Ryxwaer/youtube-popup-extension",
   "minimum_chrome_version": "120",
   "icons": {
@@ -13,7 +13,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "PiP Anywhere",
+    "default_title": "PiP for YouTube",
     "default_popup": "options.html",
     "default_icon": {
       "16": "icons/icon16.png",

@@ -1,4 +1,4 @@
-# PiP Anywhere – Floating Player for YouTube
+# Picture in Picture for YouTube – iOS-style Floating Player
 
 A Chrome / Brave extension that keeps your YouTube video playing in a floating
 picture-in-picture window while you use other tabs. It works like picture-in-picture
@@ -75,7 +75,7 @@ node dev/promo-video/render.mjs /tmp/take promo.mp4   # needs fonts/InterVariabl
 ### Diagnostics
 
 Off by default. To turn them on, open `chrome://extensions`, click **service worker**
-under PiP Anywhere, and run in its console:
+under PiP for YouTube, and run in its console:
 
 ```js
 chrome.storage.local.set({ pipDebug: true })   // false to turn off again
