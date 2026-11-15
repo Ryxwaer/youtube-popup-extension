@@ -2,7 +2,7 @@
 // browser, a floating window showing an abstract scene, and the extension's
 // real control glyphs. No third-party UI or footage.
 //
-//   node tiles.mjs <outdir>
+//   node tiles.mjs <outdir> [--cover]   (--cover adds the 1800x600 blog cover)
 import puppeteer from 'puppeteer-core';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -100,19 +100,22 @@ const controls = (w, h) => {
   </div>`;
 };
 
-const marquee = () => {
+// The marquee, optionally widened (the extra width goes to both margins), which
+// gives the 3:1 blog cover.
+const marquee = (W = 1400) => {
   const s = 1;
   const pw = 400;
   const ph = 225;
-  const px = 1400 - 60 - pw - 26;
+  const o = (W - 1400) / 2;
+  const px = o + 1400 - 60 - pw - 26;
   const py = 560 - 50 - ph - 22;
-  return `<div class="t" style="width:1400px;height:560px">
-    <div class="brand" style="left:76px">
+  return `<div class="t" style="width:${W}px;height:560px">
+    <div class="brand" style="left:${o + 76}px">
       <img src="${icon}" style="width:84px;height:84px;margin-bottom:22px">
       <div class="name" style="font-size:62px">Picture in Picture<br>for YouTube</div>
       <div class="sub" style="font-size:24px;margin-top:16px">An iOS-style floating player,<br>on every tab.</div>
     </div>
-    ${browser({ x: 640, y: 50, w: 700, h: 460, r: 16, s })}
+    ${browser({ x: o + 640, y: 50, w: 700, h: 460, r: 16, s })}
     <div class="pip ghost" style="left:${px - 210}px;top:${py - 150}px;width:${pw}px;height:${ph}px;border-radius:14px;opacity:.10"></div>
     <div class="pip ghost" style="left:${px - 110}px;top:${py - 78}px;width:${pw}px;height:${ph}px;border-radius:14px;opacity:.22"></div>
     <div class="pip" style="left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;border-radius:14px"></div>
@@ -140,10 +143,12 @@ const small = () => {
 fs.mkdirSync(OUT, { recursive: true });
 const b = await puppeteer.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--allow-file-access-from-files', '--force-color-profile=srgb'] });
 const p = await b.newPage();
-for (const [name, W, H, body, s] of [['promo-small-440x280', 440, 280, small(), 0.5], ['promo-marquee-1400x560', 1400, 560, marquee(), 1]]) {
+const tiles = [['promo-small-440x280', 440, 280, small(), 0.5], ['promo-marquee-1400x560', 1400, 560, marquee(), 1]];
+if (process.argv.includes('--cover')) tiles.push(['blog-cover-1800x600', 1680, 560, marquee(1680), 1, 1800 / 1680]);
+for (const [name, W, H, body, s, dpr = 1] of tiles) {
   const file = path.join(OUT, `.${name}.html`);
   fs.writeFileSync(file, `<!doctype html><html><head><meta charset="utf-8"><style>${css(s)}</style></head><body>${body}</body></html>`);
-  await p.setViewport({ width: W, height: H, deviceScaleFactor: 1 });
+  await p.setViewport({ width: W, height: H, deviceScaleFactor: dpr });
   await p.goto('file://' + file, { waitUntil: 'load' });
   await p.evaluate(() => document.fonts.ready);
   await p.screenshot({ path: path.join(OUT, `${name}.png`) });
