@@ -109,8 +109,8 @@ const marquee = () => {
   return `<div class="t" style="width:1400px;height:560px">
     <div class="brand" style="left:76px">
       <img src="${icon}" style="width:84px;height:84px;margin-bottom:22px">
-      <div class="name" style="font-size:64px">PiP Anywhere</div>
-      <div class="sub" style="font-size:24px;margin-top:14px">A floating player for YouTube,<br>on every tab.</div>
+      <div class="name" style="font-size:62px">Picture in Picture<br>for YouTube</div>
+      <div class="sub" style="font-size:24px;margin-top:16px">An iOS-style floating player,<br>on every tab.</div>
     </div>
     ${browser({ x: 640, y: 50, w: 700, h: 460, r: 16, s })}
     <div class="pip ghost" style="left:${px - 210}px;top:${py - 150}px;width:${pw}px;height:${ph}px;border-radius:14px;opacity:.10"></div>
@@ -129,8 +129,8 @@ const small = () => {
   return `<div class="t" style="width:440px;height:280px">
     <div class="brand" style="left:30px">
       <img src="${icon}" style="width:50px;height:50px;margin-bottom:12px">
-      <div class="name" style="font-size:28px">PiP Anywhere</div>
-      <div class="sub" style="font-size:14px;margin-top:8px">Floating player<br>for YouTube</div>
+      <div class="name" style="font-size:28px">PiP for<br>YouTube</div>
+      <div class="sub" style="font-size:14px;margin-top:8px">iOS-style<br>floating player</div>
     </div>
     ${browser({ x: 226, y: 34, w: 260, h: 260, r: 10, s })}
     <div class="pip" style="left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;border-radius:9px">${controls(pw, ph)}</div>
