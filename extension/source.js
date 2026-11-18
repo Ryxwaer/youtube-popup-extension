@@ -44,6 +44,15 @@
   let attaching = null;
   let sender = null;
   let pendingCandidates = [];
+  // Browsers hide host addresses behind random mDNS names (….local), which the
+  // other peer has to look up. Both ends live in the same browser on the same
+  // machine, so each candidate's port is reachable on loopback as well: add that
+  // copy, so the link doesn't hang on an mDNS lookup that never answers (seen in
+  // Brave on a busy Wi-Fi, where it leaves every connection stuck at "new").
+  const withLoopback = (c) => {
+    const alt = c?.candidate?.replace(/^(candidate:\S+ \d+ udp \d+ )\S+\.local /i, (_, head) => head + '127.0.0.1 ');
+    return alt && alt !== c.candidate ? [c, { ...c, candidate: alt }] : [c];
+  };
   let wantHeight = MAX_SEND_HEIGHT;
   let lastTick = 0;
 
@@ -328,8 +337,10 @@
       wantHeight = data.want;
       tune();
     } else if (data.candidate && msgSid === sid && (data.gen || 0) === gen) {
-      if (pc?.remoteDescription) pc.addIceCandidate(data.candidate).catch(() => {});
-      else pendingCandidates.push(data.candidate);
+      for (const c of withLoopback(data.candidate)) {
+        if (pc?.remoteDescription) pc.addIceCandidate(c).catch(() => {});
+        else pendingCandidates.push(c);
+      }
     }
   }
 
